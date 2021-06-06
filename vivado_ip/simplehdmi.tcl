@@ -19,6 +19,7 @@ file copy ../svosrc/svo_enc.v ip/simplehdmi/
 file copy ../svosrc/svo_vdma.v ip/simplehdmi/
 file copy ../svosrc/svo_term.v ip/simplehdmi/
 file copy ../svosrc/svo_tmds.v ip/simplehdmi/
+file copy ../svosrc/svo_openldi.v ip/simplehdmi/
 file copy ../svosrc/svo_utils.v ip/simplehdmi/
 file copy ../svosrc/svo_defines.vh ip/simplehdmi/
 
@@ -31,6 +32,7 @@ foreach fgn {verilog:synthesis verilog:simulation} {
 	ipx::add_file svo_vdma.v $fg
 	ipx::add_file svo_term.v $fg
 	ipx::add_file svo_tmds.v $fg
+	ipx::add_file svo_openldi.v $fg
 	ipx::add_file svo_utils.v $fg
 	ipx::add_file svo_defines.vh $fg
 	ipx::add_file simplehdmi.xdc $fg
@@ -110,7 +112,7 @@ set_property master_address_space_ref mem $intf
 #####################################
 # clocks
 
-foreach it {clk clk_pixel clk_5x_pixel} {
+foreach it {clk clk_pixel clk_5x_pixel clk_7x_pixel} {
 	set intf [ipx::add_bus_interface $it $ip]
 	set_property -dict {
 		abstraction_type_vlnv xilinx.com:signal:clock_rtl:1.0

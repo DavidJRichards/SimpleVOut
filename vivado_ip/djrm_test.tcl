@@ -8,7 +8,6 @@ source axiplayer.tcl
 
 ########################################################
 ## Create top-level block design
-# djrm, includes modification to include 24 bit openldi output
 
 create_project -part xc7z010clg400-2 -in_memory
 
@@ -42,6 +41,7 @@ create_bd_port -dir O tmds_clk_n
 create_bd_port -dir O tmds_clk_p
 create_bd_port -dir O -from 2 -to 0 tmds_d_n
 create_bd_port -dir O -from 2 -to 0 tmds_d_p
+
 create_bd_port -dir O ok_led
 
 create_bd_port -dir O openldi_clk_n

@@ -13,8 +13,7 @@ if ![file exists ../vivado_ip/ip] {
 ########################################################
 ## Create top-level block design
 
-#create_project -part xc7z010clg400-2 -in_memory
-create_project -part xc7z010clg400-2 -name system
+create_project -part xc7z010clg400-2 -in_memory
 # save_project_as -force system_prj
 
 set_property ip_repo_paths "[pwd]/../vivado_ip/ip" [current_fileset]
@@ -30,7 +29,7 @@ apply_bd_automation -rule xilinx.com:bd_rule:processing_system7 \
 
 create_bd_cell -type ip -vlnv clifford.at:ip:simplehdmi framebuffer
 set_property -dict "
-	CONFIG.SVO_MODE    640x480R
+	CONFIG.SVO_MODE    1280x720R
 	CONFIG.SVO_FRAMERATE      60
 	CONFIG.SVO_BITS_PER_PIXEL 24
 	CONFIG.SVO_BITS_PER_RED    8

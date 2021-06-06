@@ -20,11 +20,14 @@
 `timescale 1ns / 1ps
 `include "../svosrc/svo_defines.vh"
 
-`define MODE_640_480_60
+`define noskip
+
+// `define MODE_640_480_60
 // `define MODE_800_480_75
+ `define MODE_800_600_60
 // `define MODE_1024_768_60
 // `define MODE_1920_1080_60
-`define SINGLE_ENDED_LDI
+// `define SINGLE_ENDED_LDI
 
 module system (
 	// 125 MHz clock
@@ -35,6 +38,8 @@ module system (
 	output [4:0] vga_b,
 	output vga_hs,
 	output vga_vs,
+	output vga_clk,
+	output vga_blank,
 
 	output tmds_clk_n,
 	output tmds_clk_p,
@@ -43,12 +48,12 @@ module system (
 
 	output openldi_clk_n,
 	output openldi_clk_p,
-	output [2:0] openldi_a_n,
-	output [2:0] openldi_a_p,
+	output [3:0] openldi_a_n,
+	output [3:0] openldi_a_p,
 
 	input [3:0] sw,
-	input [3:0] btn,
-	output [3:0] led
+	input [3:0] btn
+	//output [3:0] led
 );
 
 
@@ -69,6 +74,16 @@ module system (
 `ifdef MODE_800_480_75
 	parameter SVO_MODE             =   "800x480R";
 	parameter SVO_FRAMERATE        =   75;
+	parameter SVO_BITS_PER_PIXEL   =   18;
+	parameter SVO_BITS_PER_RED     =    6;
+	parameter SVO_BITS_PER_GREEN   =    6;
+	parameter SVO_BITS_PER_BLUE    =    6;
+	parameter SVO_BITS_PER_ALPHA   =    0;
+`endif
+
+`ifdef MODE_800_600_60
+	parameter SVO_MODE             =   "800x600R";
+	parameter SVO_FRAMERATE        =   60;
 	parameter SVO_BITS_PER_PIXEL   =   18;
 	parameter SVO_BITS_PER_RED     =    6;
 	parameter SVO_BITS_PER_GREEN   =    6;
@@ -129,7 +144,8 @@ module system (
 	wire pll_feedback_1;
 
 	PLLE2_BASE #(
-		.CLKFBOUT_MULT(13),
+//		.CLKFBOUT_MULT(13),
+		.CLKFBOUT_MULT(48.75),
 		.CLKOUT0_DIVIDE(70),
 		.CLKOUT0_DUTY_CYCLE(0.5),
 		.CLKOUT0_PHASE(0.0),
@@ -159,7 +175,38 @@ module system (
 	wire pll_feedback_1;
 
 	PLLE2_BASE #(
-		.CLKFBOUT_MULT(10),
+//		.CLKFBOUT_MULT(10),
+		.CLKFBOUT_MULT(37.50),
+		.CLKOUT0_DIVIDE(35),
+		.CLKOUT0_DUTY_CYCLE(0.5),
+		.CLKOUT0_PHASE(0.0),
+		.CLKOUT1_DIVIDE(7),
+		.CLKOUT1_DUTY_CYCLE(0.5),
+		.CLKOUT1_PHASE(0.0),
+		.CLKOUT2_DIVIDE(5),
+		.CLKOUT2_DUTY_CYCLE(0.5),
+		.CLKOUT2_PHASE(0.0)
+	) PLL_1 (
+		.CLKIN1(clk),
+		.CLKOUT0(pixel_clk_unbuf),
+		.CLKOUT1(tmds_clk_unbuf),
+		.CLKOUT2(openldi_clk_unbuf),
+		.CLKFBOUT(pll_feedback_1),
+		.CLKFBIN(pll_feedback_1),
+		.PWRDWN(1'b0),
+		.LOCKED(pll_locked_1),
+		.RST(1'b0)
+	);
+
+	assign resetn_unbuf = pll_locked_1;
+`endif
+
+`ifdef MODE_800_600_60
+	wire pll_locked_1;
+	wire pll_feedback_1;
+
+	PLLE2_BASE #(                  // 40 MHz
+		.CLKFBOUT_MULT(42),
 		.CLKOUT0_DIVIDE(35),
 		.CLKOUT0_DUTY_CYCLE(0.5),
 		.CLKOUT0_PHASE(0.0),
@@ -243,7 +290,8 @@ module system (
 	wire pll_feedback_3;
 
 	PLLE2_BASE #(
-		.CLKFBOUT_MULT(9),
+//		.CLKFBOUT_MULT(9),
+		.CLKFBOUT_MULT(33.75),
 		.CLKOUT0_DIVIDE(20),
 		.CLKOUT0_DUTY_CYCLE(0.5),
 		.CLKOUT0_PHASE(0.0)
@@ -298,7 +346,8 @@ module system (
 	wire pll_feedback_2;
 
 	MMCME2_BASE #(
-		.CLKFBOUT_MULT_F(11.08),
+//		.CLKFBOUT_MULT_F(11.08),
+		.CLKFBOUT_MULT_F(41.55),
 		.CLKOUT1_DIVIDE(10),
 		.CLKOUT1_DUTY_CYCLE(0.5),
 		.CLKOUT1_PHASE(0.0),
@@ -372,7 +421,7 @@ module system (
 	wire [0:0] video_pong_tuser;
 
 	wire video_enc_tvalid, video_enc_tready;
-	wire [17:0] video_enc_tdata;
+	wire [23:0] video_enc_tdata;
 	wire [3:0] video_enc_tuser;
 
 	svo_tcard #( `SVO_PASS_PARAMS ) svo_tcard (
@@ -386,7 +435,7 @@ module system (
 	);
 
 	wire [3:0] pong_auto_btn;
-
+`ifdef noskip
 	svo_pong #( `SVO_PASS_PARAMS ) svo_pong (
 		.clk(pixel_clk),
 		.resetn(resetn),
@@ -406,16 +455,21 @@ module system (
 		.out_axis_tdata(video_pong_tdata),
 		.out_axis_tuser(video_pong_tuser)
 	);
-
+`endif
 	svo_enc #( `SVO_PASS_PARAMS ) svo_enc (
 		.clk(pixel_clk),
 		.resetn(resetn),
-
+`ifdef noskip
 		.in_axis_tvalid(video_pong_tvalid),
 		.in_axis_tready(video_pong_tready),
 		.in_axis_tdata(video_pong_tdata),
 		.in_axis_tuser(video_pong_tuser),
-
+`else
+		.in_axis_tvalid(video_tcard_tvalid),
+		.in_axis_tready(video_tcard_tready),
+		.in_axis_tdata(video_tcard_tdata),
+		.in_axis_tuser(video_tcard_tuser),
+`endif
 		.out_axis_tvalid(video_enc_tvalid),
 		.out_axis_tready(video_enc_tready),
 		.out_axis_tdata(video_enc_tdata),
@@ -427,13 +481,17 @@ module system (
 
 	// --------------------------------------------------------------------
 	// VGA output signals (via R-2R network)
+	// djrm amended to allow use of ADV7123 Video DAC
+	// added vga_clk and vga_blank signal
 	// --------------------------------------------------------------------
 
 	assign vga_r = video_enc_tdata[5:1];
 	assign vga_g = video_enc_tdata[11:6];
 	assign vga_b = video_enc_tdata[17:13];
-	assign vga_hs = video_enc_tuser[1];
-	assign vga_vs = video_enc_tuser[2];
+	assign vga_hs = ~ video_enc_tuser[1];
+	assign vga_vs = ~ video_enc_tuser[2];
+	assign vga_blank = ~ video_enc_tuser[3];
+	assign vga_clk = ~ pixel_clk;
 
 
 	// --------------------------------------------------------------------
@@ -571,7 +629,7 @@ module system (
 	// OpenLDI (LVDS Display Interface) output signals
 	// --------------------------------------------------------------------
 
-	wire [2:0] openldi_a0, openldi_a1, openldi_a2, openldi_a3, openldi_a4, openldi_a5, openldi_a6;
+	wire [3:0] openldi_a0, openldi_a1, openldi_a2, openldi_a3, openldi_a4, openldi_a5, openldi_a6;
 
 `ifdef SINGLE_ENDED_LDI
 	OSERDESE2 #(
@@ -617,9 +675,9 @@ module system (
 	);
 `else
 	wire openldi_c;
-	wire [2:0] openldi_a;
+	wire [3:0] openldi_a;
 
-	OBUFDS openldi_bufds [3:0] (
+	OBUFDS openldi_bufds [4:0] (
 		.I({openldi_c, openldi_a}),
 		.O({openldi_clk_p, openldi_a_p}),
 		.OB({openldi_clk_n, openldi_a_n})
@@ -637,7 +695,7 @@ module system (
 		.TBYTE_CTL("FALSE"),
 		.TBYTE_SRC("FALSE"),
 		.TRISTATE_WIDTH(1)
-	) openldi_serdes [3:0] (
+	) openldi_serdes [4:0] (
 		.OFB(),
 		.OQ({openldi_c, openldi_a}),
 		.SHIFTOUT1(),
@@ -674,12 +732,19 @@ module system (
 		.hs(video_enc_tuser[1]),
 		.vs(video_enc_tuser[2]),
 		.de(!video_enc_tuser[3]),
-		.r(video_enc_tdata[5:0]),
-		.g(video_enc_tdata[11:6]),
-		.b(video_enc_tdata[17:12]),
+`ifdef DATA24BITS
+		.r(video_enc_tdata[7:0]),
+?		.g(video_enc_tdata[15:8]),
+		.b(video_enc_tdata[23:16]),
+`else
+		.r(video_enc_tdata[5:0]<<2),
+		.g(video_enc_tdata[11:6]<<2),
+		.b(video_enc_tdata[17:12]<<2),
+`endif
 		.a0({openldi_a0[0], openldi_a1[0], openldi_a2[0], openldi_a3[0], openldi_a4[0], openldi_a5[0], openldi_a6[0]}),
 		.a1({openldi_a0[1], openldi_a1[1], openldi_a2[1], openldi_a3[1], openldi_a4[1], openldi_a5[1], openldi_a6[1]}),
-		.a2({openldi_a0[2], openldi_a1[2], openldi_a2[2], openldi_a3[2], openldi_a4[2], openldi_a5[2], openldi_a6[2]})
+		.a2({openldi_a0[2], openldi_a1[2], openldi_a2[2], openldi_a3[2], openldi_a4[2], openldi_a5[2], openldi_a6[2]}),
+		.a3({openldi_a0[3], openldi_a1[3], openldi_a2[3], openldi_a3[3], openldi_a4[3], openldi_a5[3], openldi_a6[3]})
 	);
 
 
@@ -705,5 +770,5 @@ module system (
 		end
 	end
 
-	assign led = { ok_status[0], ok_status[1], ok_status[2], ok_status[3] };
+//	assign led = { ok_status[0], ok_status[1], ok_status[2], ok_status[3] };
 endmodule

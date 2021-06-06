@@ -106,13 +106,19 @@ proc post_config_ip {cellpath otherInfo} {
 	send_msg {SIMPLEHDMI-1} {INFO} "Horizontal resolution incl. blanking: $full_w"
 	send_msg {SIMPLEHDMI-1} {INFO} "Vertical resolution incl. blanking: $full_h"
 
-	set clk_pixel_hz [expr {$full_w * $full_h * $framerate}]
-	set clk_pixel_hz [expr {(($clk_pixel_hz + 125000) / 250000) * 250000}]
+	set clk_pixel_hz_ [expr {$full_w * $full_h * $framerate}]
+	# set clk_pixel_hz [expr {(($clk_pixel_hz_ + 125000) /  250000) *  250000}]
+	set  clk_pixel_hz [expr {(($clk_pixel_hz_ + 500000) / 1000000) * 1000000}]
 	set clk_5x_pixel_hz [expr {5 * $clk_pixel_hz}]
+	set clk_7x_pixel_hz [expr {7 * $clk_pixel_hz}]
 
-	send_msg {SIMPLEHDMI-1} {INFO} "Resulting pixel clock: $clk_pixel_hz Hz (rounded to 0.25 MHz)"
-	send_msg {SIMPLEHDMI-1} {INFO} "Resulting tmds ddr clock: $clk_5x_pixel_hz Hz"
+	send_msg {SIMPLEHDMI-1} {INFO} "Resulting pixel clock: $clk_pixel_hz_ Hz "
+   # send_msg {SIMPLEHDMI-1} {INFO} "Resulting pixel clock: $clk_pixel_hz Hz (rounded to 0.25 MHz)"
+	send_msg {SIMPLEHDMI-1} {INFO} "Resulting pixel clock: $clk_pixel_hz Hz (rounded to 1.0 MHz)"
+	send_msg {SIMPLEHDMI-1} {INFO} "Resulting tmds ddr 5x clock: $clk_5x_pixel_hz Hz"
+	send_msg {SIMPLEHDMI-1} {INFO} "Resulting tmds ddr 7x clock: $clk_7x_pixel_hz Hz"
 
 	set_property CONFIG.FREQ_HZ $clk_pixel_hz [get_bd_pins $ip/clk_pixel]
 	set_property CONFIG.FREQ_HZ $clk_5x_pixel_hz [get_bd_pins $ip/clk_5x_pixel]
+	set_property CONFIG.FREQ_HZ $clk_7x_pixel_hz [get_bd_pins $ip/clk_7x_pixel]
 }

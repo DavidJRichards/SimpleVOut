@@ -1,5 +1,6 @@
 
 create_project -part xc7z010clg400-2 -in_memory
+#create_project -force -part xc7z010clg400-2 -name system_prj
 
 read_verilog system.v
 read_verilog ../svosrc/svo_tcard.v

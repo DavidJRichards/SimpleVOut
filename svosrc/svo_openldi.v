@@ -23,10 +23,11 @@
 module svo_openldi (
 	input clk, resetn,
 	input de, vs, hs,
-	input [5:0] r, g, b,
-	output [6:0] a0, a1, a2
+	input [7:0] r, g, b,
+	output [6:0] a0, a1, a2, a3
 );
 	assign a0 = {g[0], r[5], r[4], r[3], r[2], r[1], r[0]};
 	assign a1 = {b[1], b[0], g[5], g[4], g[3], g[2], g[1]};
 	assign a2 = {  de,   vs,   hs, b[5], b[4], b[3], b[2]};
+	assign a3 = {   0, b[7], b[6], g[7], g[6], r[7], r[6]};
 endmodule

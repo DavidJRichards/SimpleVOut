@@ -28,6 +28,7 @@ module simplehdmi (
 	// video clocks
 	input clk_pixel,
 	input clk_5x_pixel,
+	input clk_7x_pixel,
 	input locked,
 
 	// config interface: axi4-lite slave
@@ -63,9 +64,15 @@ module simplehdmi (
 	output       tmds_clk_p,
 	output [2:0] tmds_d_n,
 	output [2:0] tmds_d_p,
+
+	output openldi_clk_n,
+	output openldi_clk_p,
+	output [3:0] openldi_a_n,
+	output [3:0] openldi_a_p,
+
 	output       ok_led
 );
-	parameter SVO_MODE             =   "640x480";
+	parameter SVO_MODE             =   "800x600R";
 	parameter SVO_FRAMERATE        =   60;
 	parameter SVO_BITS_PER_PIXEL   =   24;
 	parameter SVO_BITS_PER_RED     =    8;
@@ -345,4 +352,130 @@ module simplehdmi (
 		.dout({tmds_d9[2], tmds_d8[2], tmds_d7[2], tmds_d6[2], tmds_d5[2],
 		       tmds_d4[2], tmds_d3[2], tmds_d2[2], tmds_d1[2], tmds_d0[2]})
 	);
+
+
+	// --------------------------------------------------------------------
+	// OpenLDI (LVDS Display Interface) output signals
+	// --------------------------------------------------------------------
+
+	wire [3:0] openldi_a0, openldi_a1, openldi_a2, openldi_a3, openldi_a4, openldi_a5, openldi_a6;
+
+`ifdef SINGLE_ENDED_LDI
+	OSERDESE2 #(
+		.DATA_RATE_OQ("SDR"),
+		.DATA_RATE_TQ("SDR"),
+		.DATA_WIDTH(7),
+		.INIT_OQ(1'b0),
+		.INIT_TQ(1'b0),
+		.SERDES_MODE("MASTER"),
+		.SRVAL_OQ(1'b0),
+		.SRVAL_TQ(1'b0),
+		.TBYTE_CTL("FALSE"),
+		.TBYTE_SRC("FALSE"),
+		.TRISTATE_WIDTH(1)
+	) openldi_serdes_array[7:0] (
+		.OFB(),
+		.OQ({openldi_clk_p, openldi_clk_n, openldi_a_p, openldi_a_n}),
+		.SHIFTOUT1(),
+		.SHIFTOUT2(),
+		.TBYTEOUT(),
+		.TFB(),
+		.TQ(),
+		.CLK(clk_7x_pixel),
+		.CLKDIV(clk_pixel),
+		.D1({2'b10, openldi_a0, ~openldi_a0}),
+		.D2({2'b10, openldi_a1, ~openldi_a1}),
+		.D3({2'b01, openldi_a2, ~openldi_a2}),
+		.D4({2'b01, openldi_a3, ~openldi_a3}),
+		.D5({2'b01, openldi_a4, ~openldi_a4}),
+		.D6({2'b10, openldi_a5, ~openldi_a5}),
+		.D7({2'b10, openldi_a6, ~openldi_a6}),
+		.D8(),
+		.OCE(1'b1),
+		.RST(~resetn),
+		.SHIFTIN1(1'b0),
+		.SHIFTIN2(1'b0),
+		.T1(1'b0),
+		.T2(1'b0),
+		.T3(1'b0),
+		.T4(1'b0),
+		.TBYTEIN(1'b0),
+		.TCE(1'b0)
+	);
+`else
+	wire openldi_c;
+	wire [3:0] openldi_a;
+
+	OBUFDS openldi_bufds [4:0] (
+		.I({openldi_c, openldi_a}),
+		.O({openldi_clk_p, openldi_a_p}),
+		.OB({openldi_clk_n, openldi_a_n})
+	);
+
+	OSERDESE2 #(
+		.DATA_RATE_OQ("SDR"),
+		.DATA_RATE_TQ("SDR"),
+		.DATA_WIDTH(7),
+		.INIT_OQ(1'b0),
+		.INIT_TQ(1'b0),
+		.SERDES_MODE("MASTER"),
+		.SRVAL_OQ(1'b0),
+		.SRVAL_TQ(1'b0),
+		.TBYTE_CTL("FALSE"),
+		.TBYTE_SRC("FALSE"),
+		.TRISTATE_WIDTH(1)
+	) openldi_serdes [4:0] (
+		.OFB(),
+		.OQ({openldi_c, openldi_a}),
+		.SHIFTOUT1(),
+		.SHIFTOUT2(),
+		.TBYTEOUT(),
+		.TFB(),
+		.TQ(),
+		.CLK(clk_7x_pixel),
+		.CLKDIV(clk_pixel),
+		.D1({1'b1, openldi_a0}),
+		.D2({1'b1, openldi_a1}),
+		.D3({1'b0, openldi_a2}),
+		.D4({1'b0, openldi_a3}),
+		.D5({1'b0, openldi_a4}),
+		.D6({1'b1, openldi_a5}),
+		.D7({1'b1, openldi_a6}),
+		.D8(),
+		.OCE(1'b1),
+		.RST(~resetn),
+		.SHIFTIN1(1'b0),
+		.SHIFTIN2(1'b0),
+		.T1(1'b0),
+		.T2(1'b0),
+		.T3(1'b0),
+		.T4(1'b0),
+		.TBYTEIN(1'b0),
+		.TCE(1'b0)
+	);
+`endif
+
+	svo_openldi svo_openldi (
+		.clk(clk_pixel),
+		.resetn(resetn),
+		.hs(video_enc_tuser[1]),
+		.vs(video_enc_tuser[2]),
+		.de(!video_enc_tuser[3]),
+`ifndef DATA18BITS
+		.r(video_enc_tdata[7:0]),
+		.g(video_enc_tdata[15:8]),
+		.b(video_enc_tdata[23:16]),
+`else
+		.r(video_enc_tdata[7:2]),
+		.g(video_enc_tdata[15:10]),
+		.b(video_enc_tdata[23:18]),
+`endif
+		.a0({openldi_a0[0], openldi_a1[0], openldi_a2[0], openldi_a3[0], openldi_a4[0], openldi_a5[0], openldi_a6[0]}),
+		.a1({openldi_a0[1], openldi_a1[1], openldi_a2[1], openldi_a3[1], openldi_a4[1], openldi_a5[1], openldi_a6[1]}),
+		.a2({openldi_a0[2], openldi_a1[2], openldi_a2[2], openldi_a3[2], openldi_a4[2], openldi_a5[2], openldi_a6[2]}),
+		.a3({openldi_a0[3], openldi_a1[3], openldi_a2[3], openldi_a3[3], openldi_a4[3], openldi_a5[3], openldi_a6[3]})
+	);
+
+
+
 endmodule
